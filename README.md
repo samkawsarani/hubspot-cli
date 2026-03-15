@@ -1,7 +1,7 @@
 # hubspot-cli
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-orange.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Star this repo](https://img.shields.io/github/stars/samkawsarani/sams-clis?style=social)](https://github.com/samkawsarani/sams-clis)
+[![Star this repo](https://img.shields.io/github/stars/samkawsarani/hubspot-cli?style=social)](https://github.com/samkawsarani/hubspot-cli)
 
 Read-only HubSpot CRM API client with CLI. Built for use by LLM agents and humans.
 
@@ -10,7 +10,7 @@ Read-only HubSpot CRM API client with CLI. Built for use by LLM agents and human
 ### From source (local development)
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/samkawsarani/hubspot-cli.git
 cd hubspot-cli
 uv sync            # or: pip install -e ".[dev]"
 ```
@@ -19,20 +19,20 @@ uv sync            # or: pip install -e ".[dev]"
 
 ```bash
 # Install from a git repo
-pip install "hubspot-cli @ git+https://<repo-url>.git"
+pip install "hubspot-cli @ git+https://github.com/samkawsarani/hubspot-cli.git"
 
 # Or add to your pyproject.toml dependencies
-# "hubspot-cli @ git+https://<repo-url>.git"
+# "hubspot-cli @ git+https://github.com/samkawsarani/hubspot-cli.git"
 ```
 
 ### For agents (MCP tools / Claude Code / etc.)
 
 ```bash
 # Install globally so the CLI is available
-pip install "hubspot-cli @ git+https://<repo-url>.git"
+pip install "hubspot-cli @ git+https://github.com/samkawsarani/hubspot-cli.git"
 
 # Or install in an isolated environment with uv
-uv tool install "hubspot-cli @ git+https://<repo-url>.git"
+uv tool install "hubspot-cli @ git+https://github.com/samkawsarani/hubspot-cli.git"
 ```
 
 ## Usage
