@@ -1,0 +1,22 @@
+[project]
+name = "hubspot-cli"
+version = "1.0.0"
+description = "HubSpot CRM API integration — search and read operations with CLI"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28",
+    "python-dotenv>=1.0",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+hubspot-cli = "hubspot_cli.__main__:main"
+
+[tool.setuptools.package-dir]
+hubspot_cli = "src"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
