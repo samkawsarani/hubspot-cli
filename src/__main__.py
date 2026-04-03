@@ -21,8 +21,9 @@ import getpass
 import json
 import os
 import sys
-from pathlib import Path
 
+from . import __version__
+from .client import CONFIG_DIR, CONFIG_ENV, load_config
 from . import (
     search_companies,
     search_deals,
@@ -33,32 +34,6 @@ from . import (
     get_ticket,
     get_contact,
 )
-
-
-def _save_token_to_env(token: str) -> Path:
-    """Save token to .env file in current directory."""
-    env_path = Path.cwd() / ".env"
-    lines: list[str] = []
-
-    if env_path.exists():
-        with open(env_path) as f:
-            lines = f.readlines()
-
-    # Replace existing token or append
-    found = False
-    for i, line in enumerate(lines):
-        if line.startswith("HUBSPOT_ACCESS_TOKEN="):
-            lines[i] = f"HUBSPOT_ACCESS_TOKEN={token}\n"
-            found = True
-            break
-
-    if not found:
-        lines.append(f"HUBSPOT_ACCESS_TOKEN={token}\n")
-
-    with open(env_path, "w") as f:
-        f.writelines(lines)
-
-    return env_path
 
 
 def cmd_init(args: argparse.Namespace) -> None:
@@ -109,11 +84,22 @@ def cmd_init(args: argparse.Namespace) -> None:
                 print("Aborting.")
                 return
 
-    # Save to .env
-    env_path = _save_token_to_env(token)
+    # Write to global config
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    lines: list[str] = []
+    if os.path.exists(CONFIG_ENV):
+        with open(CONFIG_ENV) as f:
+            lines = f.readlines()
+    # Strip existing HUBSPOT_* lines
+    lines = [l for l in lines if not l.startswith("HUBSPOT_")]
+    lines.append(f"HUBSPOT_ACCESS_TOKEN={token}\n")
+    with open(CONFIG_ENV, "w") as f:
+        f.writelines(lines)
+
     print()
-    print(f"Token saved to {env_path}")
-    print("You're all set! Try: hubspot-cli search-contacts --limit 1")
+    print("Configuration saved to ~/.config/hubspot-cli/.env")
+    print("Override any value by setting it in a local .env file.")
+    print("Run `hubspot-cli search-contacts` to get started.")
 
 
 def cmd_search_companies(args: argparse.Namespace) -> None:
@@ -185,6 +171,7 @@ def main() -> int:
         description="HubSpot integration CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--version", action="version", version=f"hubspot-cli {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # init

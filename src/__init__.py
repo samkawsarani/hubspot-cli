@@ -1,5 +1,7 @@
 """HubSpot CRM API integration — read-only access to CRM objects via Search API."""
 
+__version__ = "1.1.0"
+
 from .hubspot import (
     list_properties,
     get_all_property_names,
