@@ -7,7 +7,17 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv()
+CONFIG_DIR = os.path.expanduser("~/.config/hubspot-cli")
+CONFIG_ENV = os.path.join(CONFIG_DIR, ".env")
+
+
+def load_config() -> None:
+    """Load config: global ~/.config/hubspot-cli/.env, then local .env (overrides)."""
+    load_dotenv(CONFIG_ENV)       # global config
+    load_dotenv(override=True)    # local .env in cwd wins
+
+
+load_config()
 
 BASE_URL = "https://api.hubapi.com"
 

@@ -102,16 +102,20 @@ python -m hubspot_cli search-companies --query "Acme"
 
 ## Configuration
 
-Set your HubSpot Private App access token as an environment variable:
+Run `hubspot-cli init` for interactive setup. Config is written to `~/.config/hubspot-cli/.env`
+so it works globally regardless of your working directory.
+
+```
+HUBSPOT_ACCESS_TOKEN=...
+```
+
+### Local overrides
+
+A `.env` file in your current working directory takes precedence over the global config:
 
 ```bash
-export HUBSPOT_ACCESS_TOKEN="pat-na1-xxxxxxxx"
-```
-
-Or create a `.env` file:
-
-```
-HUBSPOT_ACCESS_TOKEN=pat-na1-xxxxxxxx
+# .env (project root)
+HUBSPOT_ACCESS_TOKEN=project-specific-token
 ```
 
 ## Testing
