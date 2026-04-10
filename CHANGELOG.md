@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-10
+
 ### Added
 - `install-skill` command: writes `SKILL.md` to `.agents/skills/hubspot/` and optionally symlinks `.claude/skills/hubspot` (supports `--global` and `--claude` flags)
 
