@@ -1,8 +1,10 @@
 import { Command } from "commander";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { createInterface } from "readline";
 import { APIError, CONFIG_DIR, CONFIG_ENV, HubSpotClient, loadConfig } from "./client.js";
+import { readPackagedSkillMarkdown } from "./skill-path.js";
 import {
   searchCompanies,
   searchDeals,
@@ -17,6 +19,160 @@ import {
 const pkgPath = new URL("../package.json", import.meta.url);
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { version: string };
 const VERSION = pkg.version;
+
+const SKILL_INSTALL_NAME = "hubspot";
+
+function sameRealPath(a: string, b: string): boolean {
+  try {
+    return fs.realpathSync(a) === fs.realpathSync(b);
+  } catch {
+    return false;
+  }
+}
+
+function throwIfLegacyFlatSkillEntry(entryPath: string, label: string): void {
+  if (!fs.existsSync(entryPath)) return;
+  const st = fs.statSync(entryPath);
+  if (st.isFile()) {
+    throw new Error(
+      `Legacy install: ${label} is a file at ${entryPath}. Remove it, then run install-skill again. The skill now lives in ${SKILL_INSTALL_NAME}/SKILL.md.`,
+    );
+  }
+}
+
+function symlinkSkillDir(targetAbs: string, linkAbs: string): void {
+  fs.symlinkSync(targetAbs, linkAbs, "dir");
+}
+
+function skillMdExists(skillMdPath: string): boolean {
+  return fs.existsSync(skillMdPath) && fs.statSync(skillMdPath).isFile();
+}
+
+async function resolveClaudeSymlinkChoice(
+  claudeFlag: boolean,
+  claudeSkillDir: string,
+): Promise<boolean> {
+  if (claudeFlag) return true;
+  const stdin = process.stdin as NodeJS.ReadStream & { isTTY?: boolean };
+  if (!stdin.isTTY) {
+    console.log("Not a TTY: skipping .claude symlink. Pass --claude to create it.");
+    return false;
+  }
+  const answer = await promptInput(
+    `Create a symlink at ${claudeSkillDir} so Claude Code can load this skill? [Y/n]: `,
+  );
+  const a = answer.trim().toLowerCase();
+  return a === "" || a === "y" || a === "yes";
+}
+
+async function cmdInstallSkill(options: { global: boolean; claude: boolean }): Promise<void> {
+  const content = readPackagedSkillMarkdown();
+  const agentsSkillsDir = options.global
+    ? path.join(os.homedir(), ".agents", "skills")
+    : path.join(process.cwd(), ".agents", "skills");
+  const claudeSkillsDir = options.global
+    ? path.join(os.homedir(), ".claude", "skills")
+    : path.join(process.cwd(), ".claude", "skills");
+
+  const agentsDirAbs = path.resolve(agentsSkillsDir);
+  const claudeDirAbs = path.resolve(claudeSkillsDir);
+  const agentsSkillDir = path.join(agentsDirAbs, SKILL_INSTALL_NAME);
+  const agentsSkillMd = path.join(agentsSkillDir, "SKILL.md");
+  const claudeSkillDir = path.join(claudeDirAbs, SKILL_INSTALL_NAME);
+
+  let skillsDirsAreSame = false;
+  try {
+    if (fs.existsSync(agentsDirAbs) && fs.existsSync(claudeDirAbs)) {
+      skillsDirsAreSame = sameRealPath(agentsDirAbs, claudeDirAbs);
+    }
+  } catch {
+    skillsDirsAreSame = false;
+  }
+
+  const agentsSkillMdPresent = skillMdExists(agentsSkillMd);
+
+  if (skillsDirsAreSame) {
+    throwIfLegacyFlatSkillEntry(agentsSkillDir, `"${SKILL_INSTALL_NAME}" under .agents/skills`);
+    if (fs.existsSync(agentsSkillDir) && fs.statSync(agentsSkillDir).isDirectory()) {
+      if (agentsSkillMdPresent) {
+        console.log(
+          `Skill already installed at ${agentsSkillMd} (.claude/skills and .agents/skills are the same directory).`,
+        );
+        return;
+      }
+      fs.writeFileSync(agentsSkillMd, content);
+      console.log(`Skill written to ${agentsSkillMd}`);
+      return;
+    }
+    fs.mkdirSync(agentsSkillDir, { recursive: true });
+    fs.writeFileSync(agentsSkillMd, content);
+    console.log(`Skill written to ${agentsSkillMd}`);
+    return;
+  }
+
+  throwIfLegacyFlatSkillEntry(agentsSkillDir, `"${SKILL_INSTALL_NAME}" under .agents/skills`);
+  throwIfLegacyFlatSkillEntry(claudeSkillDir, `"${SKILL_INSTALL_NAME}" under .claude/skills`);
+
+  const agentsSkillDirExists =
+    fs.existsSync(agentsSkillDir) && fs.statSync(agentsSkillDir).isDirectory();
+  const claudeSkillDirExists =
+    fs.existsSync(claudeSkillDir) && fs.statSync(claudeSkillDir).isDirectory();
+
+  if (agentsSkillDirExists && claudeSkillDirExists) {
+    if (sameRealPath(agentsSkillDir, claudeSkillDir)) {
+      if (agentsSkillMdPresent) {
+        console.log(`Skill already installed; ${claudeSkillDir} points to ${agentsSkillDir}.`);
+        return;
+      }
+      fs.writeFileSync(agentsSkillMd, content);
+      console.log(`Skill written to ${agentsSkillMd}`);
+      return;
+    }
+    throw new Error(
+      `Refusing to overwrite: both ${agentsSkillDir} and ${claudeSkillDir} exist and are not the same directory. Remove or rename one, then run install-skill again.`,
+    );
+  }
+
+  if (!agentsSkillDirExists && claudeSkillDirExists) {
+    throw new Error(
+      `Refusing to overwrite: ${claudeSkillDir} already exists but ${agentsSkillDir} does not. Remove or rename the Claude path, then run install-skill again.`,
+    );
+  }
+
+  const needsClaudeSymlink =
+    (agentsSkillDirExists && !claudeSkillDirExists) ||
+    (!agentsSkillDirExists && !claudeSkillDirExists);
+  const linkClaude = needsClaudeSymlink
+    ? await resolveClaudeSymlinkChoice(options.claude, claudeSkillDir)
+    : false;
+
+  if (agentsSkillDirExists && !claudeSkillDirExists) {
+    if (!agentsSkillMdPresent) {
+      fs.writeFileSync(agentsSkillMd, content);
+      console.log(`Skill written to ${agentsSkillMd}`);
+    }
+    if (linkClaude) {
+      fs.mkdirSync(path.dirname(claudeSkillDir), { recursive: true });
+      symlinkSkillDir(agentsSkillDir, claudeSkillDir);
+      console.log(`Linked ${claudeSkillDir} -> ${agentsSkillDir}`);
+    } else {
+      console.log("Skipped .claude symlink.");
+    }
+    return;
+  }
+
+  fs.mkdirSync(agentsSkillDir, { recursive: true });
+  fs.writeFileSync(agentsSkillMd, content);
+  console.log(`Skill written to ${agentsSkillMd}`);
+
+  if (linkClaude) {
+    fs.mkdirSync(path.dirname(claudeSkillDir), { recursive: true });
+    symlinkSkillDir(agentsSkillDir, claudeSkillDir);
+    console.log(`Linked ${claudeSkillDir} -> ${agentsSkillDir}`);
+  } else {
+    console.log("Skipped .claude symlink.");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Prompt helpers
@@ -333,6 +489,21 @@ program
   .action(async (opts) => {
     try {
       await cmdGetContact({ id: opts.id });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("install-skill")
+  .description(
+    "Write .agents/skills/hubspot/SKILL.md; optionally symlink .claude/skills/hubspot (prompt or --claude)",
+  )
+  .option("--global", "Use ~/.agents/skills and ~/.claude/skills", false)
+  .option("--claude", "Create the .claude skills symlink without prompting", false)
+  .action(async (opts) => {
+    try {
+      await cmdInstallSkill({ global: opts.global, claude: opts.claude });
     } catch (err) {
       handleError(err);
     }

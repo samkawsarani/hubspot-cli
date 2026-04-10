@@ -53,3 +53,5 @@ export {
   searchSubscriptions,
   getSubscription,
 } from "./hubspot.js";
+
+export { readPackagedSkillMarkdown } from "./skill-path.js";

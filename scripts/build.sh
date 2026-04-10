@@ -11,6 +11,9 @@ mkdir -p dist
 echo "Compiling library to dist/lib …"
 bun x tsc -p tsconfig.build.json
 
+mkdir -p dist/skills/hubspot
+cp skills/hubspot/SKILL.md dist/skills/hubspot/SKILL.md
+
 echo "Bundling CLI to dist/hubspot.js …"
 bun build src/cli.ts --outfile dist/hubspot.js --target node
 
