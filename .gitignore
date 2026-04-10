@@ -1,0 +1,27 @@
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# npm pack (local testing)
+*.tgz
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.cursor/
+.claude/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
